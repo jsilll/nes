@@ -19,6 +19,11 @@ impl CPU {
         self.memory[addr as usize]
     }
 
+    pub(super) fn mem_read_increment(&mut self, addr: u16) -> u8 {
+        self.counter += 1;
+        self.memory[addr as usize]
+    }
+
     pub(super) fn mem_write(&mut self, addr: u16, data: u8) {
         self.memory[addr as usize] = data;
     }
@@ -36,50 +41,52 @@ impl CPU {
         self.mem_write(addr + 1, high);
     }
 
-    pub(super) fn operand_address(&self, mode: AddressingMode) -> u16 {
+    pub(super) fn get_operand_address(&self, mode: AddressingMode) -> u16 {
         match mode {
-            AddressingMode::Immediate => self.prog_counter,
-            AddressingMode::ZeroPage => self.mem_read(self.prog_counter) as u16,
-            AddressingMode::Absolute => self.mem_read_u16(self.prog_counter),
+            AddressingMode::Immediate => self.counter,
+
+            AddressingMode::ZeroPage => self.mem_read(self.counter) as u16,
+
+            AddressingMode::Absolute => self.mem_read_u16(self.counter),
 
             AddressingMode::ZeroPageX => {
-                let pos = self.mem_read(self.prog_counter);
-                let addr = pos.wrapping_add(self.reg_x) as u16;
+                let pos = self.mem_read(self.counter);
+                let addr = pos.wrapping_add(self.x) as u16;
                 addr
             }
 
             AddressingMode::ZeroPageY => {
-                let pos = self.mem_read(self.prog_counter);
-                let addr = pos.wrapping_add(self.reg_y) as u16;
+                let pos = self.mem_read(self.counter);
+                let addr = pos.wrapping_add(self.y) as u16;
                 addr
             }
 
             AddressingMode::AbsoluteX => {
-                let base = self.mem_read_u16(self.prog_counter);
-                let addr = base.wrapping_add(self.reg_x as u16);
+                let base = self.mem_read_u16(self.counter);
+                let addr = base.wrapping_add(self.x as u16);
                 addr
             }
 
             AddressingMode::AbsoluteY => {
-                let base = self.mem_read_u16(self.prog_counter);
-                let addr = base.wrapping_add(self.reg_y as u16);
+                let base = self.mem_read_u16(self.counter);
+                let addr = base.wrapping_add(self.y as u16);
                 addr
             }
 
             AddressingMode::IndirectX => {
-                let base = self.mem_read(self.prog_counter);
-                let addr: u8 = base.wrapping_add(self.reg_x);
+                let base = self.mem_read(self.counter);
+                let addr: u8 = base.wrapping_add(self.x);
                 let lo = self.mem_read(addr as u16);
                 let hi = self.mem_read(addr.wrapping_add(1) as u16);
                 (hi as u16) << 8 | (lo as u16)
             }
 
             AddressingMode::IndirectY => {
-                let base = self.mem_read(self.prog_counter);
+                let base = self.mem_read(self.counter);
                 let lo = self.mem_read(base as u16);
                 let hi = self.mem_read((base as u8).wrapping_add(1) as u16);
                 let deref_base = (hi as u16) << 8 | (lo as u16);
-                let deref = deref_base.wrapping_add(self.reg_y as u16);
+                let deref = deref_base.wrapping_add(self.y as u16);
                 deref
             }
         }
@@ -112,8 +119,8 @@ mod test {
         cpu.load(vec![0xA]);
         cpu.reset();
         assert_eq!(
-            cpu.prog_counter,
-            cpu.operand_address(AddressingMode::Immediate)
+            cpu.counter,
+            cpu.get_operand_address(AddressingMode::Immediate)
         );
     }
 
@@ -122,7 +129,7 @@ mod test {
         let mut cpu = CPU::new();
         cpu.load(vec![0xaa]);
         cpu.reset();
-        assert_eq!(cpu.operand_address(AddressingMode::ZeroPage), 0x00aa);
+        assert_eq!(cpu.get_operand_address(AddressingMode::ZeroPage), 0x00aa);
     }
 
     #[test]
@@ -130,8 +137,8 @@ mod test {
         let mut cpu = CPU::new();
         cpu.load(vec![0xa]);
         cpu.reset();
-        cpu.reg_x = 1;
-        assert_eq!(cpu.operand_address(AddressingMode::ZeroPageX), 0x000b);
+        cpu.x = 1;
+        assert_eq!(cpu.get_operand_address(AddressingMode::ZeroPageX), 0x000b);
     }
 
     #[test]
@@ -139,8 +146,8 @@ mod test {
         let mut cpu = CPU::new();
         cpu.load(vec![0xa]);
         cpu.reset();
-        cpu.reg_y = 1;
-        assert_eq!(cpu.operand_address(AddressingMode::ZeroPageY), 0x000b);
+        cpu.y = 1;
+        assert_eq!(cpu.get_operand_address(AddressingMode::ZeroPageY), 0x000b);
     }
 
     #[test]
@@ -148,7 +155,7 @@ mod test {
         let mut cpu = CPU::new();
         cpu.load(vec![0xaa]);
         cpu.reset();
-        assert_eq!(cpu.operand_address(AddressingMode::Absolute), 0x00aa);
+        assert_eq!(cpu.get_operand_address(AddressingMode::Absolute), 0x00aa);
     }
 
     #[test]
@@ -156,8 +163,8 @@ mod test {
         let mut cpu = CPU::new();
         cpu.load(vec![0xef, 0xbe]);
         cpu.reset();
-        cpu.reg_x = 1;
-        assert_eq!(cpu.operand_address(AddressingMode::AbsoluteX), 0xbef0);
+        cpu.x = 1;
+        assert_eq!(cpu.get_operand_address(AddressingMode::AbsoluteX), 0xbef0);
     }
 
     #[test]
@@ -165,8 +172,8 @@ mod test {
         let mut cpu = CPU::new();
         cpu.load(vec![0xef, 0xbe]);
         cpu.reset();
-        cpu.reg_y = 1;
-        assert_eq!(cpu.operand_address(AddressingMode::AbsoluteY), 0xbef0);
+        cpu.y = 1;
+        assert_eq!(cpu.get_operand_address(AddressingMode::AbsoluteY), 0xbef0);
     }
 
     #[test]
@@ -174,11 +181,11 @@ mod test {
         let mut cpu = CPU::new();
         cpu.load(vec![]);
         cpu.reset();
-        cpu.reg_x = 1;
+        cpu.x = 1;
         cpu.memory[0x8000] = 0xde;
         cpu.memory[0x00df] = 0xef;
         cpu.memory[0x00e0] = 0xbe;
-        assert_eq!(cpu.operand_address(AddressingMode::IndirectX), 0xbeef);
+        assert_eq!(cpu.get_operand_address(AddressingMode::IndirectX), 0xbeef);
     }
 
     #[test]
@@ -186,10 +193,10 @@ mod test {
         let mut cpu = CPU::new();
         cpu.load(vec![]);
         cpu.reset();
-        cpu.reg_y = 1;
+        cpu.y = 1;
         cpu.memory[0x8000] = 0xde;
         cpu.memory[0x00de] = 0xef;
         cpu.memory[0x00df] = 0xbe;
-        assert_eq!(cpu.operand_address(AddressingMode::IndirectY), 0xbef0);
+        assert_eq!(cpu.get_operand_address(AddressingMode::IndirectY), 0xbef0);
     }
 }
