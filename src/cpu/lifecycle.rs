@@ -1,13 +1,14 @@
 use super::memory;
-use super::operations::CPUStatus;
+use super::Flags;
 use super::CPU;
 
 impl CPU {
     /// Creates a new instance of a CPU
+    ///
     pub fn new() -> Self {
         CPU {
             a: 0,
-            status: CPUStatus::from_bits_truncate(0b100100),
+            flags: Flags::from_bits_truncate(0b100100),
             counter: 0,
             x: 0,
             y: 0,
@@ -17,25 +18,29 @@ impl CPU {
 
     /// Loads a program into PRG ROM space and saves the reference to the
     /// beginning code into 0xFFFC memory cell
+    ///
     pub fn load(&mut self, program: Vec<u8>) {
         self.memory[0x8000..(0x8000 + program.len())].copy_from_slice(&program[..]);
         self.mem_write_u16(0xFFFC, 0x8000);
     }
 
     /// Restores the state of all registers, and initializes `prog_counter` by the 2-byte value stored at 0xFFFC
+    ///
     pub fn reset(&mut self) {
         self.a = 0;
         self.x = 0;
-        self.status = CPUStatus::from_bits_truncate(0b100100);
+        self.flags = Flags::from_bits_truncate(0b100100);
         self.counter = self.mem_read_u16(0xFFFC);
     }
 
     /// Executes the instructions stored on the CPU's PRG ROM
+    ///
     pub fn run(&mut self) -> Result<(), &str> {
         loop {
-            let op = self.mem_read(self.counter);
-            self.counter += 1;
+            let op = self.mem_read_increment(self.counter);
             match op {
+                0x00 => return Ok(()),
+
                 0x69 => {
                     self.adc(memory::AddressingMode::Immediate);
                 }
@@ -121,13 +126,84 @@ impl CPU {
                 }
 
                 /* BCC - Branch if Carry Clear */
-                0x90 => self.branch(!self.status.contains(CPUStatus::CARRY)),
+                0x90 => self.branch(!self.flags.contains(Flags::CARRY)),
 
                 /* BCS - Branch if Carry Set */
-                0xb0 => self.branch(self.status.contains(CPUStatus::CARRY)),
+                0xb0 => self.branch(self.flags.contains(Flags::CARRY)),
 
                 /* BEQ - Branch if Equal */
-                0xf0 => self.branch(self.status.contains(CPUStatus::ZERO)),
+                0xf0 => self.branch(self.flags.contains(Flags::ZERO)),
+
+                0x24 => {
+                    self.bit(memory::AddressingMode::ZeroPage);
+                }
+
+                0x2c => {
+                    self.bit(memory::AddressingMode::Absolute);
+                }
+
+                /* BMI - Branch if Minus */
+                0x30 => self.branch(self.flags.contains(Flags::NEGATIVE)),
+
+                /* BNE - Branch if Not Equal */
+                0xD0 => self.branch(!self.flags.contains(Flags::ZERO)),
+
+                /* BPL - Branch if Positive */
+                0x10 => self.branch(!self.flags.contains(Flags::NEGATIVE)),
+
+                /* BVC - Branch if Overflow Clear */
+                0x50 => self.branch(!self.flags.contains(Flags::OVERFLOW)),
+
+                /* BVS - Branch if Overflow Set */
+                0x70 => self.branch(!self.flags.contains(Flags::OVERFLOW)),
+
+                0x18 => {
+                    self.clc();
+                }
+
+                0xd8 => {
+                    self.cld();
+                }
+
+                0x58 => {
+                    self.cli();
+                }
+
+                0xb8 => {
+                    self.clv();
+                }
+
+                0xc9 => {
+                    self.cmp(memory::AddressingMode::Immediate);
+                }
+
+                0xc5 => {
+                    self.cmp(memory::AddressingMode::ZeroPage);
+                }
+
+                0xd5 => {
+                    self.cmp(memory::AddressingMode::ZeroPageX);
+                }
+
+                0xcd => {
+                    self.cmp(memory::AddressingMode::Absolute);
+                }
+
+                0xdd => {
+                    self.cmp(memory::AddressingMode::AbsoluteX);
+                }
+
+                0xd9 => {
+                    self.cmp(memory::AddressingMode::AbsoluteY);
+                }
+
+                0xc1 => {
+                    self.cmp(memory::AddressingMode::IndirectX);
+                }
+
+                0xd1 => {
+                    self.cmp(memory::AddressingMode::IndirectY);
+                }
 
                 0xa9 => {
                     self.lda(memory::AddressingMode::Immediate);
@@ -193,8 +269,6 @@ impl CPU {
                     self.sta(memory::AddressingMode::IndirectY);
                 }
 
-                0x00 => return Ok(()),
-
                 _ => return Err("Unknown opcode found."),
             }
         }
@@ -202,6 +276,7 @@ impl CPU {
 
     /// Combines `load()`, `reset()` and `run()` associated functions.
     /// This is the primary method to be used by client code
+    ///
     pub fn load_and_run(&mut self, program: Vec<u8>) -> Result<(), &str> {
         self.load(program);
         self.reset();
@@ -214,7 +289,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn loads() {
+    fn load_loads() {
         let mut cpu = CPU::new();
         let program = vec![0xa9, 0xc0, 0xaa, 0xe8, 0x00];
         let prog_len = program.len();
@@ -226,20 +301,20 @@ mod test {
     }
 
     #[test]
-    fn resets() {
+    fn reset_resets() {
         let mut cpu = CPU::new();
         cpu.memory[0xFFFC] = 0x00;
         cpu.memory[0xFFFD] = 0x80;
         cpu.reset();
         assert_eq!(cpu.a, 0);
         assert_eq!(cpu.x, 0);
-        assert_eq!(cpu.status, CPUStatus::from_bits_truncate(0b100100),);
+        assert_eq!(cpu.flags, Flags::from_bits_truncate(0b100100),);
         assert_eq!(cpu.counter, 0x8000);
     }
 
     #[test]
     #[should_panic(expected = "Unknown opcode found.")]
-    fn run_panics() {
+    fn run_can_err() {
         let mut cpu = CPU::new();
         let program = vec![0xff];
         cpu.load_and_run(program).unwrap();
