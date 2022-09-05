@@ -4,7 +4,6 @@ use super::CPU;
 
 impl CPU {
     /// Creates a new instance of a CPU
-    ///
     pub fn new() -> Self {
         CPU {
             a: 0,
@@ -18,14 +17,12 @@ impl CPU {
 
     /// Loads a program into PRG ROM space and saves the reference to the
     /// beginning code into 0xFFFC memory cell
-    ///
     pub fn load(&mut self, program: Vec<u8>) {
         self.memory[0x8000..(0x8000 + program.len())].copy_from_slice(&program[..]);
         self.mem_write_u16(0xFFFC, 0x8000);
     }
 
     /// Restores the state of all registers, and initializes `prog_counter` by the 2-byte value stored at 0xFFFC
-    ///
     pub fn reset(&mut self) {
         self.a = 0;
         self.x = 0;
@@ -34,10 +31,9 @@ impl CPU {
     }
 
     /// Executes the instructions stored on the CPU's PRG ROM
-    ///
     pub fn run(&mut self) -> Result<(), &str> {
         loop {
-            let op = self.mem_read_increment(self.counter);
+            let op = self.mem_read_incr(self.counter);
             match op {
                 0x00 => return Ok(()),
 
@@ -174,35 +170,35 @@ impl CPU {
                 }
 
                 0xc9 => {
-                    self.cmp(memory::AddressingMode::Immediate);
+                    self.cmp(memory::AddressingMode::Immediate, self.a);
                 }
 
                 0xc5 => {
-                    self.cmp(memory::AddressingMode::ZeroPage);
+                    self.cmp(memory::AddressingMode::ZeroPage, self.a);
                 }
 
                 0xd5 => {
-                    self.cmp(memory::AddressingMode::ZeroPageX);
+                    self.cmp(memory::AddressingMode::ZeroPageX, self.a);
                 }
 
                 0xcd => {
-                    self.cmp(memory::AddressingMode::Absolute);
+                    self.cmp(memory::AddressingMode::Absolute, self.a);
                 }
 
                 0xdd => {
-                    self.cmp(memory::AddressingMode::AbsoluteX);
+                    self.cmp(memory::AddressingMode::AbsoluteX, self.a);
                 }
 
                 0xd9 => {
-                    self.cmp(memory::AddressingMode::AbsoluteY);
+                    self.cmp(memory::AddressingMode::AbsoluteY, self.a);
                 }
 
                 0xc1 => {
-                    self.cmp(memory::AddressingMode::IndirectX);
+                    self.cmp(memory::AddressingMode::IndirectX, self.a);
                 }
 
                 0xd1 => {
-                    self.cmp(memory::AddressingMode::IndirectY);
+                    self.cmp(memory::AddressingMode::IndirectY, self.a);
                 }
 
                 0xa9 => {
@@ -276,7 +272,6 @@ impl CPU {
 
     /// Combines `load()`, `reset()` and `run()` associated functions.
     /// This is the primary method to be used by client code
-    ///
     pub fn load_and_run(&mut self, program: Vec<u8>) -> Result<(), &str> {
         self.load(program);
         self.reset();

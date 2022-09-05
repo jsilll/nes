@@ -15,25 +15,31 @@ pub(super) enum AddressingMode {
 }
 
 impl CPU {
+    /// Reads a u8 from cpu's memory
     pub(super) fn mem_read(&self, addr: u16) -> u8 {
         self.memory[addr as usize]
     }
 
-    pub(super) fn mem_read_increment(&mut self, addr: u16) -> u8 {
+    /// Reads a u8 from cpu's memory
+    /// and increments counter
+    pub(super) fn mem_read_incr(&mut self, addr: u16) -> u8 {
         self.counter += 1;
         self.memory[addr as usize]
     }
 
+    /// Writes a u8 in cpu's memory
     pub(super) fn mem_write(&mut self, addr: u16, data: u8) {
         self.memory[addr as usize] = data;
     }
 
+    /// Reads a u16 from cpu's memory
     pub(super) fn mem_read_u16(&self, addr: u16) -> u16 {
         let low = self.mem_read(addr) as u16;
         let high = self.mem_read(addr + 1) as u16;
         (high << 8) | (low as u16)
     }
 
+    /// Writes a u16 in cpu's memory    
     pub(super) fn mem_write_u16(&mut self, addr: u16, data: u16) {
         let high = (data >> 8) as u8;
         let low = (data & 0xff) as u8;
@@ -41,7 +47,8 @@ impl CPU {
         self.mem_write(addr + 1, high);
     }
 
-    pub(super) fn get_operand_address(&self, mode: AddressingMode) -> u16 {
+    /// Gets the operand address for a give adressing mode
+    pub(super) fn get_oper_addr(&self, mode: AddressingMode) -> u16 {
         match mode {
             AddressingMode::Immediate => self.counter,
 
@@ -118,10 +125,7 @@ mod test {
         let mut cpu = CPU::new();
         cpu.load(vec![0xA]);
         cpu.reset();
-        assert_eq!(
-            cpu.counter,
-            cpu.get_operand_address(AddressingMode::Immediate)
-        );
+        assert_eq!(cpu.counter, cpu.get_oper_addr(AddressingMode::Immediate));
     }
 
     #[test]
@@ -129,7 +133,7 @@ mod test {
         let mut cpu = CPU::new();
         cpu.load(vec![0xaa]);
         cpu.reset();
-        assert_eq!(cpu.get_operand_address(AddressingMode::ZeroPage), 0x00aa);
+        assert_eq!(cpu.get_oper_addr(AddressingMode::ZeroPage), 0x00aa);
     }
 
     #[test]
@@ -138,7 +142,7 @@ mod test {
         cpu.load(vec![0xa]);
         cpu.reset();
         cpu.x = 1;
-        assert_eq!(cpu.get_operand_address(AddressingMode::ZeroPageX), 0x000b);
+        assert_eq!(cpu.get_oper_addr(AddressingMode::ZeroPageX), 0x000b);
     }
 
     #[test]
@@ -147,7 +151,7 @@ mod test {
         cpu.load(vec![0xa]);
         cpu.reset();
         cpu.y = 1;
-        assert_eq!(cpu.get_operand_address(AddressingMode::ZeroPageY), 0x000b);
+        assert_eq!(cpu.get_oper_addr(AddressingMode::ZeroPageY), 0x000b);
     }
 
     #[test]
@@ -155,7 +159,7 @@ mod test {
         let mut cpu = CPU::new();
         cpu.load(vec![0xaa]);
         cpu.reset();
-        assert_eq!(cpu.get_operand_address(AddressingMode::Absolute), 0x00aa);
+        assert_eq!(cpu.get_oper_addr(AddressingMode::Absolute), 0x00aa);
     }
 
     #[test]
@@ -164,7 +168,7 @@ mod test {
         cpu.load(vec![0xef, 0xbe]);
         cpu.reset();
         cpu.x = 1;
-        assert_eq!(cpu.get_operand_address(AddressingMode::AbsoluteX), 0xbef0);
+        assert_eq!(cpu.get_oper_addr(AddressingMode::AbsoluteX), 0xbef0);
     }
 
     #[test]
@@ -173,7 +177,7 @@ mod test {
         cpu.load(vec![0xef, 0xbe]);
         cpu.reset();
         cpu.y = 1;
-        assert_eq!(cpu.get_operand_address(AddressingMode::AbsoluteY), 0xbef0);
+        assert_eq!(cpu.get_oper_addr(AddressingMode::AbsoluteY), 0xbef0);
     }
 
     #[test]
@@ -185,7 +189,7 @@ mod test {
         cpu.memory[0x8000] = 0xde;
         cpu.memory[0x00df] = 0xef;
         cpu.memory[0x00e0] = 0xbe;
-        assert_eq!(cpu.get_operand_address(AddressingMode::IndirectX), 0xbeef);
+        assert_eq!(cpu.get_oper_addr(AddressingMode::IndirectX), 0xbeef);
     }
 
     #[test]
@@ -197,6 +201,6 @@ mod test {
         cpu.memory[0x8000] = 0xde;
         cpu.memory[0x00de] = 0xef;
         cpu.memory[0x00df] = 0xbe;
-        assert_eq!(cpu.get_operand_address(AddressingMode::IndirectY), 0xbef0);
+        assert_eq!(cpu.get_oper_addr(AddressingMode::IndirectY), 0xbef0);
     }
 }
