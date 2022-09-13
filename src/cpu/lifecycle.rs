@@ -170,35 +170,35 @@ impl CPU {
                 }
 
                 0xc9 => {
-                    self.cmp(memory::AddressingMode::Immediate, self.a);
+                    self.compare(memory::AddressingMode::Immediate, self.a);
                 }
 
                 0xc5 => {
-                    self.cmp(memory::AddressingMode::ZeroPage, self.a);
+                    self.compare(memory::AddressingMode::ZeroPage, self.a);
                 }
 
                 0xd5 => {
-                    self.cmp(memory::AddressingMode::ZeroPageX, self.a);
+                    self.compare(memory::AddressingMode::ZeroPageX, self.a);
                 }
 
                 0xcd => {
-                    self.cmp(memory::AddressingMode::Absolute, self.a);
+                    self.compare(memory::AddressingMode::Absolute, self.a);
                 }
 
                 0xdd => {
-                    self.cmp(memory::AddressingMode::AbsoluteX, self.a);
+                    self.compare(memory::AddressingMode::AbsoluteX, self.a);
                 }
 
                 0xd9 => {
-                    self.cmp(memory::AddressingMode::AbsoluteY, self.a);
+                    self.compare(memory::AddressingMode::AbsoluteY, self.a);
                 }
 
                 0xc1 => {
-                    self.cmp(memory::AddressingMode::IndirectX, self.a);
+                    self.compare(memory::AddressingMode::IndirectX, self.a);
                 }
 
                 0xd1 => {
-                    self.cmp(memory::AddressingMode::IndirectY, self.a);
+                    self.compare(memory::AddressingMode::IndirectY, self.a);
                 }
 
                 0xa9 => {

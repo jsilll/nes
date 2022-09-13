@@ -168,13 +168,20 @@ impl CPU {
     ///
     /// Used in:
     /// - CMP - Compare
-    pub(super) fn cmp(&mut self, mode: memory::AddressingMode, compare_with: u8) {
+    pub(super) fn compare(&mut self, mode: memory::AddressingMode, compare_with: u8) {
         let addr = self.get_oper_addr(mode);
         let data = self.mem_read_incr(addr);
         self.flags.set(Flags::CARRY, data <= compare_with);
         self.update_flags_zero_neg(compare_with.wrapping_sub(data));
     }
 
+    /// ## Compare2
+    /// This instruction compares the contents of a
+    /// register with another memory held value and
+    /// sets the zero and carry flags as appropriate.
+    ///
+    /// Used in:
+    /// - CMP - Compare
     pub(super) fn lda(&mut self, mode: memory::AddressingMode) {
         let addr = self.get_oper_addr(mode);
         let param = self.mem_read_incr(addr);
@@ -370,7 +377,7 @@ mod test {
         let mut cpu = CPU::new();
         cpu.load(vec![0x1]);
         cpu.reset();
-        cpu.cmp(memory::AddressingMode::Immediate, 0x2);
+        cpu.compare(memory::AddressingMode::Immediate, 0x2);
         assert!(cpu.flags.contains(Flags::CARRY));
     }
 
@@ -380,7 +387,7 @@ mod test {
         cpu.load(vec![0x2]);
         cpu.reset();
         cpu.flags.insert(Flags::CARRY);
-        cpu.cmp(memory::AddressingMode::Immediate, 0x1);
+        cpu.compare(memory::AddressingMode::Immediate, 0x1);
         assert!(!cpu.flags.contains(Flags::CARRY));
     }
 
